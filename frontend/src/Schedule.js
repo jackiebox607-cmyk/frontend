@@ -56,11 +56,33 @@ export default function Schedule({ user, selectedClass }) {
           const data = await absencesRes.json().catch(() => ({}));
           throw new Error(data.message || "Impossible de charger les absences");
         }
-        return [await studentsRes.json(), await absencesRes.json()];
+        return [
+          await studentsRes.json().catch(() => []),
+          await absencesRes.json().catch(() => []),
+        ];
       })
       .then(([studentData, absenceData]) => {
-        const list = Array.isArray(studentData) ? studentData : [];
-        const filtered = list.filter((st) => st.classe === selectedClass);
+        const list = Array.isArray(studentData)
+          ? studentData
+          : Array.isArray(studentData?.students)
+          ? studentData.students
+          : Array.isArray(studentData?.data)
+          ? studentData.data
+          : Array.isArray(studentData?.rows)
+          ? studentData.rows
+          : [];
+
+        if (!Array.isArray(studentData) && !Array.isArray(studentData?.students) && !Array.isArray(studentData?.data) && !Array.isArray(studentData?.rows)) {
+          console.error("Unexpected /students response shape:", studentData);
+        }
+
+        const norm = (value) =>
+          String(value ?? "").trim().toLowerCase();
+
+        const filtered = list.some((st) => "classe" in st)
+          ? list.filter((st) => norm(st.classe) === norm(selectedClass))
+          : list;
+
         setStudents(filtered);
         setSavedAbsences(Array.isArray(absenceData) ? absenceData : []);
         setIsLoading(false);
